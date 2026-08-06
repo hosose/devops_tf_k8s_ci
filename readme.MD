@@ -142,3 +142,68 @@
 ./setup-ci.bat ucoccto/devops_tf_k8s_ci 
 ./setup-ci.sh ucoccto/devops_tf_k8s_ci
 ```
+
+
+
+- 오류 발생
+```
+## 🛠️ EKS / Terraform CI/CD 트러블슈팅 종합 리포트
+
+### 1. Terraform Resource Already Exists 충돌 (ECR / IAM)
+
+* **발생 에러:** `RepositoryAlreadyExistsException`, `EntityAlreadyExists`
+* **원인:** AWS상에 이미 동일한 이름의 ECR 리포지토리(`was`) 및 IAM OIDC Provider가 생성되어 있으나, 테라폼 상태 파일(`tfstate`)에 관리 대상으로 등록되지 않아 생성 시도 중 충돌 발생.
+* **해결 방법:** `terraform import` 명령어를 사용하여 기존 AWS 리소스를 테라폼 관리 상태로 가져와 동기화 수행.
+```bash
+terraform import aws_ecr_repository.was de-ai-07-eks-auto-dev/was
+terraform import 'aws_iam_openid_connect_provider.github_actions[0]' arn:aws:iam::<ACCOUNT_ID>:oidc-provider/token.actions.githubusercontent.com
+
+```
+
+
+
+---
+
+### 2. Kustomize 배포 배치 스크립트 경로 탐색 오류
+
+* **발생 에러:** `[ERROR] Kustomize file not found.`
+* **원인:** Windows 배치 스크립트 내 GitOps(CD) 레포지토리 경로 탐색 구문에서 상위 디렉토리 이동(`..\`) 누락 및 폴더명 불일치로 잘못된 중복 경로(`...\devops_tf_k8s_ci\devops_tf_k8s_cd\...`) 참조.
+* **해결 방법:** 배치 스크립트 내 `GITOPS_REPO_DIR` 설정 구문에 `..\`를 추가하고 실제 폴더명(`devops_tf_k8s_cd`)에 맞게 경로 수정.
+```cmd
+for %%I in ("%SOURCE_REPO_ROOT%\..\devops_tf_k8s_cd") do set "GITOPS_REPO_DIR=%%~fI"
+
+```
+
+
+
+---
+
+### 3. K8s Service 매니페스트 Strict Decoding 오류
+
+* **발생 에러:** `unknown field "metadata.monitoring"`
+* **원인:** Service 매니페스트 파일 작성 중 Prometheus 모니터링 라벨/어노테이션 설정이 표준 필드가 아닌 `metadata` 최상위 들여쓰기 레벨에 잘못 기입됨.
+* **해결 방법:** `metadata.monitoring` 구문을 삭제하고, `metadata.labels` 하위에 `app: was`를 맞춰 인프라 표준 라벨링 구조 적용.
+
+---
+
+### 4. ALB 접속 연결 시간 초과 (ERR_TIMED_OUT)
+
+* **발생 에러:** 브라우저 접속 시 `ERR_TIMED_OUT` (응답 시간 초과)
+* **원인:** Ingress를 통해 생성된 AWS ALB의 보안 그룹(Security Group) 인바운드 규칙에 HTTP(80) 포트 접근 권한이 누락되었거나, ALB 연결 설정 문제로 외부 트래픽이 차단됨.
+* **해결 방법:** kubectl delete ingress public-alb -n de-ai-07 이 명령어 치고 다시 deploy 실행
+
+---
+
+### 5. ALB 백엔드 서비스 미발견 오류 (Backend service does not exist)
+
+* **발생 에러:** 브라우저 접속 시 `Backend service does not exist` 출력 (`<error: services "web" not found>`)
+* **원인:** Ingress 매니페스트의 백엔드 서비스 참조 이름(`name: web`)과 실제 Kubernetes에 생성된 Service 리소스의 이름(`metadata.name: web-service`) 불일치.
+* **해결 방법:** `ingress.yaml`의 백엔드 서비스 이름을 실제 Service 이름인 `web-service`로 수정 후 재배포.
+```yaml
+backend:
+  service:
+    name: web-service # web -> web-service 변경
+    port:
+      number: 80
+
+```
