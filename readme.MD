@@ -60,7 +60,7 @@
         │  └─ setup/                # 실습 환경 설치
         ├─ tools/
         └─ docs/
-    ```
+```
 
 - 전체 저장소 배치
   ```
@@ -70,4 +70,56 @@
   ```
 
 
-  
+# 세팅
+## OIDC 처리 (AWS 인증 방식 변경)
+- 절차
+  - 기존 : pem(엑세스키)
+  - 변경 : `OIDC`
+    - OIDC(OpenID Connect)는 ⁠OAuth 2.0 프로토콜을 바탕으로 만든 신원 인증 표준
+    - 절차 : Git Action에서 ECR에 Push할때 단기 AWS 자격인증 발급받아서 로그인 수행 -> 보안 이슈
+    - IAM 계정별 엑세스키(개발 PC는 사용), PEM 파일 (git 사용 x)
+
+- workflow
+```
+    GitHub Actions
+          │
+          │ OIDC Token 발급
+          ▼
+    GitHub OIDC Provider
+          │
+          │ sts:AssumeRoleWithWebIdentity
+          ▼
+    GitHub Actions CI IAM Role
+          │
+          │ ECR Push 권한
+          ▼
+    WEB ECR / WAS ECR
+```
+
+- 수정 및 추가작업
+  - infra/ 내 수정및 추가작업
+    - terraform.tfvars
+  - git 관련 id 조회
+    ```
+      # github_owner_id, github_ci_repository_id 값 획득
+      # gh 명령어 사용
+      # 설치
+        # 윈도우        
+          winget install --id GitHub.cli
+        # 맥        
+          brew install gh
+
+      # 공통
+        # 로그인
+        gh auth login
+        ---
+        GitHub.com
+        HTTPS
+        Login with a web browser
+        Press Enter to open https://github.com/login/device in your browser
+        로그인 수행 > continue > 발급퇸 키 8자리 붙여넣기 > continue
+        `Au... github` 버튼 클릭 > 설정완료
+
+      # ID 조회
+      gh api repos/hosose/devops_tf_k8s_ci --jq "{owner_id: .owner.id, repository_id: .id, created_at: .created_at}"
+    ```
