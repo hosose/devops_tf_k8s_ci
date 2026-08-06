@@ -13,7 +13,7 @@ for %%I in ("%~dp0..\..\..") do set "SOURCE_REPO_ROOT=%%~fI"
 set "INFRA_DIR=%SOURCE_REPO_ROOT%\infra"
 
 if not defined GITOPS_REPO_DIR (
-  for %%I in ("%SOURCE_REPO_ROOT%\..\tf-k8s-cd") do set "GITOPS_REPO_DIR=%%~fI"
+  for %%I in ("%SOURCE_REPO_ROOT%\..\devops_tf_k8s_cd") do set "GITOPS_REPO_DIR=%%~fI"
 )
 
 set "K8S_SOURCE_DIR=%GITOPS_REPO_DIR%\k8s"
