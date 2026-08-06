@@ -121,5 +121,18 @@
         `Au... github` 버튼 클릭 > 설정완료
 
       # ID 조회
-      gh api repos/hosose/devops_tf_k8s_ci --jq "{owner_id: .owner.id, repository_id: .id, created_at: .created_at}"
+      gh api repos/ucoccto/devops_tf_k8s_ci --jq "{owner_id: .owner.id, repository_id: .id, created_at: .created_at}"
+      ---
+      {
+        "created_at": "2026-08-05T23:51:38Z",
+        "owner_id": 173376075,
+        "repository_id": 1324570033
+      }
     ```
+
+## 전체 인프라 구성 및 최초 web/was 이미지 빌드 -> ECR Push : ci worlflow 진행
+- 최초 (인프라구성) / 수정된 인프라 배포
+```
+./project.sh deploy
+./project.bat deploy
+```
